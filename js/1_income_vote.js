@@ -135,3 +135,118 @@ try {
            n.roster2018 AS roster2018,
            n.roster2022 AS roster2022
   `);
+
+   const incomeData = incomeRows
+    .map(row => {
+      const kommun = getKommun(row);
+      return {
+        kommun,
+        inkomst2018: getIncome2018(row),
+        inkomst2022: getIncome2022(row),
+        key: normalizeText(kommun)
+      };
+    })
+    .filter(row => row.kommun && row.inkomst2022 !== null);
+
+  const voteData = electionRows
+    .map(row => {
+      const roster2018 = toNumber(row.roster2018);
+      const roster2022 = toNumber(row.roster2022);
+
+      return {
+        kommun: row.kommun,
+        parti: row.parti,
+        roster2018,
+        roster2022,
+        skillnad:
+          roster2018 !== null && roster2022 !== null
+            ? roster2022 - roster2018
+            : null,
+        key: normalizeText(row.kommun)
+      };
+    })
+    .filter(row => sameParty(row.parti, parti) && row.roster2022 !== null);
+
+  const joined = voteData
+    .map(voteRow => {
+      const incomeRow = incomeData.find(inc => inc.key === voteRow.key);
+      if (!incomeRow) return null;
+
+      return {
+        kommun: voteRow.kommun,
+        inkomst2018: incomeRow.inkomst2018,
+        inkomst2022: incomeRow.inkomst2022,
+        roster2018: voteRow.roster2018,
+        roster2022: voteRow.roster2022,
+        skillnad: voteRow.skillnad
+      };
+    })
+    .filter(Boolean);
+
+  const strongest = [...joined]
+    .sort((a, b) => b.roster2022 - a.roster2022)
+    .slice(0, 10);
+
+  const weakest = [...joined]
+    .sort((a, b) => a.roster2022 - b.roster2022)
+    .slice(0, 10);
+
+  const strongestByIncome = [...joined]
+    .sort((a, b) => b.inkomst2022 - a.inkomst2022)
+    .slice(0, 15);
+
+  const medianIncomeStrongest = median(strongest.map(r => r.inkomst2022));
+  const medianIncomeWeakest = median(weakest.map(r => r.inkomst2022));
+  const averageChangeStrongest = average(strongest.map(r => r.skillnad));
+  const averageChangeWeakest = average(weakest.map(r => r.skillnad));
+
+  addMdToPage(`
+## Tolkning
+
+I stället för att bara räkna på alla kommuner samtidigt jämför vi här partiets **starkaste** och **svagaste** kommuner.
+
+Det gör analysen mer meningsfull, eftersom vi då ser om partiet faktiskt verkar ha sina främsta fästen i kommuner med högre eller lägre inkomster.
+
+Om medianinkomsten är tydligt högre i partiets starkaste kommuner än i dess svagaste kommuner, då stärker det hypotesen att ekonomi och röstning hänger ihop.
+`);
+
+  addMdToPage(`
+**Översikt**
+- Matchade kommuner: **${joined.length}**
+- Medianinkomst 2022 i partiets 10 starkaste kommuner: **${medianIncomeStrongest !== null ? medianIncomeStrongest.toFixed(1) : "saknas"}**
+- Medianinkomst 2022 i partiets 10 svagaste kommuner: **${medianIncomeWeakest !== null ? medianIncomeWeakest.toFixed(1) : "saknas"}**
+- Genomsnittlig röstförändring i starkaste kommunerna: **${averageChangeStrongest !== null ? averageChangeStrongest.toFixed(1) : "saknas"}**
+- Genomsnittlig röstförändring i svagaste kommunerna: **${averageChangeWeakest !== null ? averageChangeWeakest.toFixed(1) : "saknas"}**
+`);
+
+  if (!joined.length) {
+    addMdToPage(`
+**Ingen sammanslagen data hittades.**
+
+Kontrollera att kommunnamnen matchar mellan MongoDB och Neo4j.
+    `);
+  } else {
+    addMdToPage(`
+## Kommuner med högst inkomst 2022
+
+Här ser vi kommuner med hög inkomstnivå tillsammans med partiets röster 2018 och 2022.
+    `);
+
+    tableFromData({
+      data: strongestByIncome,
+      columnNames: [
+        "Kommun",
+        "Inkomst 2018",
+        "Inkomst 2022",
+        "Röster 2018",
+        "Röster 2022",
+        "Skillnad"
+      ]
+    });
+
+    const scatterRows = joined
+      .filter(r => r.inkomst2022 !== null && r.roster2022 !== null)
+      .map(r => ({
+        inkomst2022: Number(r.inkomst2022),
+        roster2022: Number(r.roster2022)
+      }));
