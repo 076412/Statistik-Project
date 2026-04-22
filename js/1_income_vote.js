@@ -250,3 +250,62 @@ Här ser vi kommuner med hög inkomstnivå tillsammans med partiets röster 2018
         inkomst2022: Number(r.inkomst2022),
         roster2022: Number(r.roster2022)
       }));
+
+    drawGoogleChart({
+      type: "ScatterChart",
+      data: makeChartFriendly(scatterRows, "inkomst2022", "roster2022"),
+      options: {
+        title: `${parti}: inkomst och röster 2022`,
+        height: 550,
+        legend: "none",
+        hAxis: { title: "Inkomst 2022" },
+        vAxis: { title: `Röster på ${parti} 2022` },
+        trendlines: { 0: {} }
+      }
+    });
+
+    const compareRows = [
+      {
+        grupp: "10 starkaste kommuner",
+        medianinkomst: medianIncomeStrongest !== null ? Number(medianIncomeStrongest) : 0
+      },
+      {
+        grupp: "10 svagaste kommuner",
+        medianinkomst: medianIncomeWeakest !== null ? Number(medianIncomeWeakest) : 0
+      }
+    ];
+
+    drawGoogleChart({
+      type: "ColumnChart",
+      data: makeChartFriendly(compareRows, "grupp", "medianinkomst"),
+      options: {
+        title: `${parti}: medianinkomst i starkaste och svagaste kommunerna`,
+        height: 500,
+        legend: { position: "none" },
+        hAxis: { title: "Grupp" },
+        vAxis: { title: "Medianinkomst 2022" }
+      }
+    });
+
+    const changeRows = strongest
+      .filter(r => r.skillnad !== null)
+      .map(r => ({
+        kommun: r.kommun,
+        skillnad: Number(r.skillnad)
+      }));
+
+    drawGoogleChart({
+      type: "ColumnChart",
+      data: makeChartFriendly(changeRows, "kommun", "skillnad"),
+      options: {
+        title: `${parti}: förändring mellan 2018 och 2022 i partiets starkaste kommuner`,
+        height: 600,
+        legend: { position: "none" },
+        hAxis: { title: "Kommun", slantedText: true, slantedTextAngle: 45 },
+        vAxis: { title: "Skillnad i röster" }
+      }
+    });
+  }
+} catch (error) {
+  addMdToPage(`## Fel\n**Fel på sidan:** ${error.message}`);
+}
