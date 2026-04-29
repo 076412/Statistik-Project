@@ -4,5 +4,6 @@ createMenu("Sverige och valen 2018–2022", [
   { name: "3. Förändringar", script: "3_shift_between_elections.js" },
   { name: "4. Regioner", script: "4_regional_patterns.js" },
   { name: "5. Starkast / svagast", script: "5_strongest_weakest.js" },
-  { name: "6. Källor", script: "6_sources.js" }
+  { name: "6. Utbildning", script: "6_education_vote.js" },
+  { name: "7. Källor", script: "7_sources.js" }
 ]);
